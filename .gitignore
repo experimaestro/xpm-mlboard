@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Virtual envs / tooling
+.venv/
+.ruff_cache/
+.pytest_cache/
+
+# uv
+# (uv.lock is kept under version control)
