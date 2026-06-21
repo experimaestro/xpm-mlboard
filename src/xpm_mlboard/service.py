@@ -76,8 +76,7 @@ class SymlinkMonitoringService(MonitoringService, abc.ABC):
         tag_path = tagspath(task)
         if not tag_path:
             logger.error(
-                "The task is not associated with tags: "
-                "cannot link to monitoring data"
+                "The task is not associated with tags: cannot link to monitoring data"
             )
             return
         source = self.path / tag_path

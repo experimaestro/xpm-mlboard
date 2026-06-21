@@ -10,7 +10,6 @@ import logging
 import re
 import socket
 import time
-from pathlib import Path
 from sys import executable
 
 from experimaestro.scheduler.services import ProcessWebService
