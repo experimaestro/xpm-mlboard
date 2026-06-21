@@ -1907,7 +1907,6 @@ wheels = [
 
 [[package]]
 name = "xpm-mlboard"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "experimaestro" },
