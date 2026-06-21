@@ -12,6 +12,7 @@ service implementation that knows how to expose a URL, such as
 import abc
 import logging
 from pathlib import Path
+from typing import Optional
 
 from experimaestro import RunMode, Task, tagspath
 from experimaestro.scheduler.services import Service
@@ -31,10 +32,10 @@ class MonitoringService(Service, abc.ABC):
     #: Unique service identifier (set by concrete backends)
     id: str
 
-    def __init__(self, path: Path):
-        # Cooperative init: forwards to the experimaestro Service / web-service
-        # base classes (all of which take no constructor arguments).
-        super().__init__()
+    def __init__(self, path: Path, log_directory: Optional[Path] = None):
+        # Cooperative init: forwards log_directory to the experimaestro Service /
+        # web-service base classes.
+        super().__init__(log_directory=log_directory)
 
         #: Root directory aggregating every run directory
         self.path = path
@@ -55,7 +56,10 @@ class MonitoringService(Service, abc.ABC):
         """Hook called once when the service becomes active (NORMAL run mode)."""
 
     def state_dict(self):
-        return {"path": self.path}
+        # Preserve the base service state (e.g. log_directory) and add our path.
+        state = super().state_dict()
+        state["path"] = self.path
+        return state
 
     @abc.abstractmethod
     def add(self, task: Task, path: Path):

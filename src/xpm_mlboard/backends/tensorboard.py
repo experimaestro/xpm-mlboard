@@ -1,14 +1,13 @@
 """TensorBoard monitoring backend.
 
-Runs ``tensorboard`` as an isolated subprocess on a free port and aggregates
-run directories through symlinks. The ``tensorboard`` package is only required
-at runtime (it is launched via ``python -m tensorboard.main``), so importing
-this module stays lightweight.
+Runs ``tensorboard`` as an isolated subprocess (letting the OS pick a free port)
+and aggregates run directories through symlinks. The ``tensorboard`` package is
+only required at runtime (it is launched via ``python -m tensorboard.main``), so
+importing this module stays lightweight.
 """
 
 import logging
 import re
-import socket
 import time
 from sys import executable
 
@@ -31,16 +30,9 @@ class TensorboardService(SymlinkMonitoringService, ProcessWebService):
     def description(self):
         return "TensorBoard service"
 
-    @staticmethod
-    def _find_available_port(start: int = 6006, max_tries: int = 100) -> int:
-        for port in range(start, start + max_tries):
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                if s.connect_ex(("localhost", port)) != 0:
-                    return port
-        return 0
-
     def _build_command(self) -> list[str]:
-        port = self._find_available_port()
+        # --port 0 lets TensorBoard bind to any free port; the chosen URL is
+        # then read back from its output in _wait_for_ready.
         return [
             executable,
             "-m",
@@ -50,12 +42,20 @@ class TensorboardService(SymlinkMonitoringService, ProcessWebService):
             "--host",
             "localhost",
             "--port",
-            str(port),
+            "0",
         ]
 
     def _wait_for_ready(self) -> str:
         """Poll stdout and stderr for TensorBoard's URL announcement."""
         url_pattern = re.compile(r"https?://localhost:\d+\S*")
+
+        # Safety check: if we don't have log files, we can't wait for ready
+        if not self.stdout and not self.stderr:
+            logging.error("No log files available for TensorBoard - cannot detect URL")
+            raise RuntimeError(
+                "TensorBoard log files are missing (log_directory is None)"
+            )
+
         while True:
             if self.process and self.process.poll() is not None:
                 # Read any error output for diagnostics
