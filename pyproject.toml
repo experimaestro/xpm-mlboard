@@ -1,6 +1,6 @@
 [project]
 name = "xpm-mlboard"
-version = "0.1.0"
+dynamic = ["version"]
 requires-python = ">=3.10"
 keywords = ["experimaestro", "tensorboard", "wandb", "machine-learning", "monitoring"]
 description = "Lightweight experimaestro services to monitor ML learning curves (TensorBoard, ...)"
@@ -31,8 +31,17 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+local_scheme = "no-local-version"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/xpm_mlboard/version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/xpm_mlboard"]
