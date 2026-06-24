@@ -1930,7 +1930,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "experimaestro", specifier = ">=2.3.4" },
+    { name = "experimaestro", specifier = ">=2.5.2" },
     { name = "setuptools", marker = "extra == 'tensorboard'", specifier = "<82.0" },
     { name = "tensorboard", marker = "extra == 'tensorboard'", specifier = ">=2.19.0" },
 ]
