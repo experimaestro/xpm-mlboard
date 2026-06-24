@@ -84,10 +84,12 @@ class MyBackendService(SymlinkMonitoringService, ProcessWebService):
 
 ## Weights & Biases
 
-> **Status:** the exporter is available as a library
-> (`xpm_mlboard.exporters.wandb.sync`). Triggering it from the experimaestro
-> TUI / Web UI and CLI, and a live "sync" service, are still in development. The
-> `wandb` configuration below is standard and applies to all of these.
+> **Status:** available both as a library (`xpm_mlboard.exporters.wandb.sync`)
+> and as a service sub-service of the TensorBoard backend
+> (`tensorboard/wandb`), startable from the CLI. Starting it from the
+> experimaestro TUI / Web UI is still in development, and the export is currently
+> one-shot (no live streaming). Starting the sub-service requires
+> **experimaestro >= 2.5.3**. The `wandb` configuration below is standard.
 
 ### How it works
 
@@ -120,6 +122,19 @@ sync(runs_dir, project="my-experiment")
 # Also remove W&B runs whose task is no longer part of the experiment:
 sync(runs_dir, project="my-experiment", reconcile=True)
 ```
+
+Or — without writing any code — start the wandb sub-service of the monitoring
+service. It exports the experiment's aggregate and stops when done:
+
+```bash
+# list services and sub-services (shows `tensorboard` and `tensorboard/wandb`)
+experimaestro experiments services list
+
+# export the (current) experiment's runs to W&B
+experimaestro experiments services start tensorboard/wandb
+```
+
+The W&B project defaults to the experiment name (one project per experiment).
 
 `sync()` also accepts `mode` (`online` / `offline` / `disabled`; otherwise taken
 from `WANDB_MODE`) and `entity`. Make sure W&B access is configured first (see
