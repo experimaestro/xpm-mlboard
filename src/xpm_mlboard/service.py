@@ -59,19 +59,30 @@ class MonitoringService(Service, abc.ABC):
     #: Unique service identifier (set by concrete backends)
     id: str
 
-    def __init__(self, path: Path, log_directory: Optional[Path] = None):
+    def __init__(
+        self,
+        path: Path,
+        log_directory: Optional[Path] = None,
+        project: Optional[str] = None,
+    ):
         # Cooperative init: forwards log_directory to the experimaestro Service /
         # web-service base classes.
         super().__init__(log_directory=log_directory)
 
         #: Root directory aggregating every run directory
         self.path = path
+        #: Project name for exporters (e.g. one Weights & Biases project per
+        #: experiment); defaults to the experiment name in :meth:`set_experiment`.
+        self.project = project
         #: Whether the service is actually collecting data
         self.active = False
         logger.info("Monitoring data path is %s", self.path)
 
     def set_experiment(self, xp):
         super().set_experiment(xp)
+        # One project per experiment (used by exporters such as Weights & Biases)
+        if self.project is None:
+            self.project = self.experiment_id or None
         # Only collect data and clean up when running normally
         if xp.run_mode == RunMode.NORMAL:
             self.active = True
@@ -83,9 +94,11 @@ class MonitoringService(Service, abc.ABC):
         """Hook called once when the service becomes active (NORMAL run mode)."""
 
     def state_dict(self):
-        # Preserve the base service state (e.g. log_directory) and add our path.
+        # Preserve the base service state (e.g. log_directory) and add our path
+        # and project so the service (and its sub-services) can be reconstructed.
         state = super().state_dict()
         state["path"] = self.path
+        state["project"] = self.project
         return state
 
     @abc.abstractmethod

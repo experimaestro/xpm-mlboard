@@ -92,3 +92,15 @@ def test_add_registers_tags(tmp_path: Path):
 
 def test_read_run_tags_missing_dir(tmp_path: Path):
     assert read_run_tags(tmp_path / "does-not-exist") == {}
+
+
+def test_project_is_persisted(tmp_path: Path):
+    """The project (used by the wandb sub-service) survives a state roundtrip."""
+    service = TensorboardService(tmp_path / "runs", project="exp1")
+    assert service.state_dict()["project"] == "exp1"
+
+    full = service.full_state_dict()
+    rebuilt = Service.from_state_dict(full["class"], full["state_dict"])
+    assert rebuilt.project == "exp1"
+    # ... and the reconstructed service's wandb sub-service inherits it
+    assert rebuilt.subservices()[1].project == "exp1"

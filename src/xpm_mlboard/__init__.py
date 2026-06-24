@@ -6,6 +6,7 @@ experiment by a helper provided by the consuming project (e.g. xpm-torch).
 """
 
 from .backends.tensorboard import TensorboardService as TensorboardService
+from .backends.wandb import WandbSyncService as WandbSyncService
 from .service import (
     MonitoringService as MonitoringService,
     SymlinkMonitoringService as SymlinkMonitoringService,

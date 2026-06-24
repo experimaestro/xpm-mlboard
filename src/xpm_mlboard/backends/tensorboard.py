@@ -30,6 +30,19 @@ class TensorboardService(SymlinkMonitoringService, ProcessWebService):
     def description(self):
         return "TensorBoard service"
 
+    def subservices(self):
+        # The service itself is the TensorBoard viewer; it also offers a wandb
+        # sub-service (addressed ``tensorboard/wandb``) that exports the same
+        # aggregate to Weights & Biases. The instance is cached so its lifecycle
+        # state is preserved across calls.
+        sub = getattr(self, "_wandb_subservice", None)
+        if sub is None:
+            from .wandb import WandbSyncService
+
+            sub = WandbSyncService(self.path, project=self.project)
+            self._wandb_subservice = sub
+        return [self, sub]
+
     def _build_command(self) -> list[str]:
         # --port 0 lets TensorBoard bind to any free port; the chosen URL is
         # then read back from its output in _wait_for_ready.
