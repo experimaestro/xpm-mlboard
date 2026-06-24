@@ -21,6 +21,13 @@ tensorboard = [
     # released in tensorboard 2.21. Drop this pin once we require tensorboard>=2.21.
     "setuptools<82.0",
 ]
+# Weights & Biases exporter (driver-side). Needs wandb plus tensorboard to read
+# the event files produced by the tasks.
+wandb = [
+    "wandb>=0.16",
+    "tensorboard>=2.19.0",
+    "setuptools<82.0",
+]
 
 [dependency-groups]
 test = [
