@@ -13,9 +13,14 @@ the heavier visualization tools pulled in as optional extras.
 - **TensorBoard** (`xpm_mlboard.TensorboardService`) — runs `tensorboard` as an
   isolated subprocess on a free port and symlinks each task's tagged run directory
   into a single `runs/` folder.
+- **Weights & Biases** — *in development.* See [Weights & Biases](#weights--biases).
 
 The `xpm_mlboard.MonitoringService` / `xpm_mlboard.SymlinkMonitoringService`
 base classes make it straightforward to add other backends (e.g. Weights & Biases).
+Alongside the symlink aggregate, `SymlinkMonitoringService` records each run's
+experimaestro tags in a `<tagspath>.tags.json` sidecar (recoverable with
+`xpm_mlboard.service.read_run_tags`), so backend-agnostic exporters can attach
+the right tags to each run.
 
 ## Installation
 
@@ -76,6 +81,64 @@ class MyBackendService(SymlinkMonitoringService, ProcessWebService):
     def _wait_for_ready(self):
         ...
 ```
+
+## Weights & Biases
+
+> **Status: in development.** The configuration below (account, self-hosted
+> server, offline mode) is standard `wandb` and is valid as soon as the exporter
+> lands. Parts specific to xpm-mlboard are marked *planned*.
+
+### How the export will work (planned)
+
+Each experimaestro **experiment** maps to a W&B **project**, and every task
+becomes a **run** named after its tags, with the task's experimaestro tags
+attached as the run's W&B `config`/`tags`. Because compute nodes are frequently
+offline, tasks never talk to W&B themselves — they only write TensorBoard event
+files. A driver-side exporter reads those event files together with the
+`<tagspath>.tags.json` sidecars (already written by the monitoring service) and
+pushes them to W&B. The same shared task can therefore be exported into several
+experiments, each carrying that experiment's own tags.
+
+### Configuring access
+
+W&B authenticates with an API key. Either log in once (stored in `~/.netrc`):
+
+```bash
+wandb login                     # prompts for your API key
+```
+
+or provide it via the environment (handy on CI / headless driver hosts):
+
+```bash
+export WANDB_API_KEY=...
+```
+
+### Using a self-hosted W&B server
+
+Point the client at your own W&B Server ("Local") instead of `wandb.ai`:
+
+```bash
+wandb login --host https://wandb.your-domain.example      # interactive
+# or non-interactively:
+export WANDB_BASE_URL=https://wandb.your-domain.example
+export WANDB_API_KEY=...
+```
+
+### Offline / air-gapped hosts
+
+When the host running the export has no network at sync time (e.g. a SLURM login
+node), write run data locally and upload it later from a connected machine:
+
+```bash
+export WANDB_MODE=offline        # record locally instead of streaming
+# ... later, from a host that can reach the server:
+wandb sync <run-dir>
+```
+
+Common environment variables: `WANDB_API_KEY`, `WANDB_BASE_URL` (self-hosted
+server URL), `WANDB_MODE` (`online` / `offline` / `disabled`), `WANDB_ENTITY`
+(team or user), `WANDB_PROJECT`. See the [W&B docs](https://docs.wandb.ai/) for
+the complete reference.
 
 ## License
 
