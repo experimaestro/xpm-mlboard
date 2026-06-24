@@ -84,20 +84,46 @@ class MyBackendService(SymlinkMonitoringService, ProcessWebService):
 
 ## Weights & Biases
 
-> **Status: in development.** The configuration below (account, self-hosted
-> server, offline mode) is standard `wandb` and is valid as soon as the exporter
-> lands. Parts specific to xpm-mlboard are marked *planned*.
+> **Status:** the exporter is available as a library
+> (`xpm_mlboard.exporters.wandb.sync`). Triggering it from the experimaestro
+> TUI / Web UI and CLI, and a live "sync" service, are still in development. The
+> `wandb` configuration below is standard and applies to all of these.
 
-### How the export will work (planned)
+### How it works
 
 Each experimaestro **experiment** maps to a W&B **project**, and every task
 becomes a **run** named after its tags, with the task's experimaestro tags
 attached as the run's W&B `config`/`tags`. Because compute nodes are frequently
 offline, tasks never talk to W&B themselves — they only write TensorBoard event
-files. A driver-side exporter reads those event files together with the
-`<tagspath>.tags.json` sidecars (already written by the monitoring service) and
-pushes them to W&B. The same shared task can therefore be exported into several
+files. The driver-side exporter reads those event files together with the
+`<tagspath>.tags.json` sidecars written by the monitoring service and pushes them
+to W&B. Each run gets a **deterministic id** derived from its tags, so re-running
+the export (or syncing an offline run later) updates the same run instead of
+creating duplicates. The same shared task can therefore be exported into several
 experiments, each carrying that experiment's own tags.
+
+### Running the export
+
+Install the extra and call `sync()` on a monitoring aggregate directory (the
+service's `runs/` folder):
+
+```bash
+uv add "xpm-mlboard[wandb]"
+```
+
+```python
+from xpm_mlboard.exporters.wandb import sync
+
+# Export every run under <results>/runs into the "my-experiment" W&B project.
+sync(runs_dir, project="my-experiment")
+
+# Also remove W&B runs whose task is no longer part of the experiment:
+sync(runs_dir, project="my-experiment", reconcile=True)
+```
+
+`sync()` also accepts `mode` (`online` / `offline` / `disabled`; otherwise taken
+from `WANDB_MODE`) and `entity`. Make sure W&B access is configured first (see
+below).
 
 ### Configuring access
 
