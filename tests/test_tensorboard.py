@@ -90,6 +90,27 @@ def test_add_registers_tags(tmp_path: Path):
     assert read_run_tags(service.path) == {tp: {"lr": 0.001, "model": "bert"}}
 
 
+def test_add_same_tags_warns(tmp_path: Path, caplog):
+    """A second run with the same tags is not linked, and a warning says so;
+    re-adding the same run stays silent."""
+    service = TensorboardService(tmp_path / "runs")
+    service.path.mkdir(parents=True)
+    service.active = True
+
+    first, second = tmp_path / "job1" / "runs", tmp_path / "job2" / "runs"
+    service.add(task=_DummyConfig.C(lr=0.1, model=tag("bert")), path=first)
+
+    with caplog.at_level("WARNING", logger="xpm.mlboard"):
+        service.add(task=_DummyConfig.C(lr=0.1, model=tag("bert")), path=first)
+        assert not caplog.records
+
+        service.add(task=_DummyConfig.C(lr=0.2, model=tag("bert")), path=second)
+        assert len(caplog.records) == 1
+        assert "is not monitored" in caplog.records[0].getMessage()
+
+    assert (service.path / "model=bert").readlink() == first
+
+
 def test_read_run_tags_missing_dir(tmp_path: Path):
     assert read_run_tags(tmp_path / "does-not-exist") == {}
 

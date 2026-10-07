@@ -127,7 +127,19 @@ class SymlinkMonitoringService(MonitoringService, abc.ABC):
         if not path.exists():
             logger.info("Creating monitoring target directory %s", path)
             path.mkdir(parents=True, exist_ok=True)
-        if not source.is_symlink():
+        if source.is_symlink():
+            # Same tags as an already registered run: only the first one is
+            # shown (re-adding the same run is fine)
+            if (target := source.readlink()) != path:
+                logger.warning(
+                    "Run %s is not monitored: %s already links to %s "
+                    "(same tags); tag the tasks with the parameters that differ "
+                    "(e.g. seed, learning rate)",
+                    path,
+                    source,
+                    target,
+                )
+        else:
             try:
                 source.symlink_to(path)
                 logger.info("Symlinked %s to %s", source, path)
