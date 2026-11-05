@@ -225,6 +225,11 @@ tables.add_table("summary", xp.resultspath / "summary.csv")
   chart, ...) is saved under `<path>/views/` and kept across experiment runs.
 - Tasks with the same tags cannot be told apart: only the first one registered
   for a table is shown (a warning is logged), as for TensorBoard runs.
+- **Remote monitoring** (`experimaestro -w <remote workspace> monitor`): the
+  registered files are synchronized to the local cache along with the service
+  directory, and kept up to date while the viewer runs (needs an experimaestro
+  version with `Service.sync_files`; tables registered by xpm-mlboard 0.4.1 or
+  older only show up once the experiment is run again).
 
 The viewer runs as a separate process on a free port; it uses the
 FastAPI/uvicorn stack experimaestro already depends on, and serves the

@@ -17,11 +17,12 @@ are only imported by the viewer process (``tables`` extra).
 import hashlib
 import json
 import logging
+import os
 import re
 import time
 from pathlib import Path
 from sys import executable
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from experimaestro import Task, tags, tagspath
 from experimaestro.scheduler.services import ProcessWebService
@@ -43,6 +44,37 @@ READY_MESSAGE = "xpm-mlboard tables viewer at"
 def entry_id(name: str, key: str) -> str:
     """Stable file name for the entry of ``key`` (run or path) in table ``name``."""
     return hashlib.sha1(json.dumps([name, key]).encode()).hexdigest()[:20]
+
+
+def entry_paths(root: Path, entry: Dict[str, Any]) -> List[Path]:
+    """Where to look for the file of an entry, in order of preference.
+
+    The file path relative to the service directory ``root`` comes first: it
+    still holds when the service directory is seen from elsewhere, e.g. in the
+    local cache of a remote workspace, where job files are synchronized at the
+    same relative location. Then comes the absolute path (the only one in
+    entries written by older versions).
+    """
+    paths = []
+    if relpath := entry.get("relpath"):
+        paths.append(Path(os.path.normpath(Path(root).absolute() / relpath)))
+    paths.append(Path(entry["path"]))
+    return paths
+
+
+def read_entries(root: Path) -> Dict[str, Dict[str, Any]]:
+    """The valid entries under ``root/entries``, by entry file name."""
+    entries = {}
+    for entry_path in sorted((root / ENTRIES_DIR).glob("*.json")):
+        try:
+            entry = json.loads(entry_path.read_text())
+            if not isinstance(entry.get("name"), str) or not entry.get("path"):
+                raise ValueError("missing table name or path")
+        except Exception:
+            logger.exception("Invalid table entry %s", entry_path)
+            continue
+        entries[entry_path.name] = entry
+    return entries
 
 
 def write_entry(root: Path, entry: Dict[str, Any]) -> Path:
@@ -135,6 +167,11 @@ class TableViewerService(MonitoringService, ProcessWebService):
             "run": run,
             "tags": tags,
         }
+        try:
+            # Relative to the service directory (see entry_paths)
+            entry["relpath"] = os.path.relpath(path, self.path.absolute())
+        except ValueError:
+            pass  # e.g. not on the same drive
 
         key = run if run is not None else str(path)
         existing = self.path / ENTRIES_DIR / f"{entry_id(name, key)}.json"
@@ -160,6 +197,15 @@ class TableViewerService(MonitoringService, ProcessWebService):
             write_entry(self.path, entry)
         except Exception:
             logger.exception("Could not register table %s (%s)", name, path)
+
+    def sync_files(self) -> List[Path]:
+        """The registered files, for remote monitoring (experimaestro then
+        synchronizes them to the local cache, where the viewer reads them)."""
+        files = []
+        for entry in read_entries(self.path).values():
+            if entry.get("relpath"):
+                files.append(entry_paths(self.path, entry)[0])
+        return files
 
     def _build_command(self) -> list[str]:
         return [

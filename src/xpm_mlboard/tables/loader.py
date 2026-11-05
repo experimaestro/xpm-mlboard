@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import polars as pl
 
-from . import ENTRIES_DIR
+from . import entry_paths, read_entries
 
 logger = logging.getLogger("xpm.mlboard.tables")
 
@@ -151,6 +151,7 @@ class TableSource:
     """One registered file of a logical table."""
 
     name: str
+    #: The file (the first of :attr:`paths` that exists, or the first one)
     path: Path
     format: Optional[str]
     run: Optional[str]
@@ -159,6 +160,9 @@ class TableSource:
     signature: Optional[Tuple[int, int]] = None
     frame: Optional[pl.DataFrame] = None
     error: Optional[str] = None
+    #: Where to look for the file, in order of preference (see
+    #: :func:`~xpm_mlboard.tables.entry_paths`); defaults to :attr:`path`
+    paths: List[Path] = field(default_factory=list)
 
     @property
     def status(self) -> str:
@@ -168,6 +172,10 @@ class TableSource:
 
     def refresh(self) -> bool:
         """Reload the file if it changed; returns whether the rows changed."""
+        if self.paths:
+            path = next((p for p in self.paths if p.exists()), self.paths[0])
+            if path != self.path:
+                self.path, self.signature = path, None
         try:
             stat = self.path.stat()
         except FileNotFoundError:
@@ -203,24 +211,19 @@ class TableRegistry:
     def refresh(self) -> Set[str]:
         """Scan the entries and files; returns the names of changed tables."""
         changed: Set[str] = set()
-        entries_dir = self.root / ENTRIES_DIR
         seen = set()
-        for entry_path in sorted(entries_dir.glob("*.json")):
-            key = entry_path.name
+        for key, entry in read_entries(self.root).items():
             seen.add(key)
             if key not in self.sources:
-                try:
-                    entry = json.loads(entry_path.read_text())
-                    self.sources[key] = TableSource(
-                        name=entry["name"],
-                        path=Path(entry["path"]),
-                        format=entry.get("format"),
-                        run=entry.get("run"),
-                        tags=entry.get("tags") or {},
-                    )
-                except Exception:
-                    logger.exception("Invalid table entry %s", entry_path)
-                    continue
+                paths = entry_paths(self.root, entry)
+                self.sources[key] = TableSource(
+                    name=entry["name"],
+                    path=paths[0],
+                    paths=paths,
+                    format=entry.get("format"),
+                    run=entry.get("run"),
+                    tags=entry.get("tags") or {},
+                )
                 changed.add(self.sources[key].name)
 
         for key in list(self.sources):

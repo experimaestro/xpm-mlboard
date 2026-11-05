@@ -237,6 +237,65 @@ def test_registry_refresh(tmp_path: Path):
     assert registry.frame("eval").height == 1
 
 
+def test_registry_remote_cache(tmp_path: Path):
+    """Seen from the local cache of a remote workspace (same layout, other
+    root), entries resolve their files relative to the service directory, and
+    the service lists them for synchronization."""
+    from xpm_mlboard.tables.loader import TableRegistry
+
+    remote = tmp_path / "remote"
+    service = TableViewerService(remote / "experiments" / "xp" / "results" / "tables")
+    service.path.mkdir(parents=True)
+    service.active = True
+    job_file = remote / "jobs" / "pkg.Eval" / "0123abcd" / "table.csv"
+    service.add(_Eval.C(lr=tag(0.1), model=tag("alpha")), job_file, name="eval")
+    (entry,) = _entries(service)
+    assert entry["path"] == str(job_file)
+    assert entry["relpath"] == "../../../../jobs/pkg.Eval/0123abcd/table.csv"
+
+    # The local cache: the service directory is synchronized, the job file
+    # not yet (and the remote absolute path does not exist here)
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    (remote / "experiments").rename(cache / "experiments")
+    cached_service = TableViewerService(
+        cache / "experiments" / "xp" / "results" / "tables"
+    )
+    cached_file = cache / "jobs" / "pkg.Eval" / "0123abcd" / "table.csv"
+    assert cached_service.sync_files() == [cached_file]
+
+    registry = TableRegistry(cached_service.path)
+    registry.refresh()
+    (file,) = registry.summary()[0]["files"]
+    assert file["status"] == "pending"
+
+    cached_file.parent.mkdir(parents=True)
+    cached_file.write_text("metric,value\nmrr,0.5\n")
+    assert registry.refresh() == {"eval"}
+    (file,) = registry.summary()[0]["files"]
+    assert (file["status"], file["path"]) == ("loaded", str(cached_file))
+    assert registry.frame("eval")["value"].to_list() == [0.5]
+
+
+def test_registry_old_entries(tmp_path: Path):
+    """Entries without a relative path (older versions) use the absolute one"""
+    from xpm_mlboard.tables import write_entry
+    from xpm_mlboard.tables.loader import TableRegistry
+
+    table = tmp_path / "job" / "eval.csv"
+    table.parent.mkdir()
+    table.write_text("metric,value\nmrr,0.5\n")
+    root = tmp_path / "tables"
+    write_entry(
+        root,
+        {"name": "eval", "path": str(table), "format": None, "run": "r", "tags": {}},
+    )
+    assert TableViewerService(root).sync_files() == []
+    registry = TableRegistry(root)
+    assert registry.refresh() == {"eval"}
+    assert registry.frame("eval").height == 1
+
+
 # --- Server --------------------------------------------------------------
 
 
