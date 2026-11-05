@@ -14,6 +14,10 @@ the heavier visualization tools pulled in as optional extras.
   isolated subprocess on a free port and symlinks each task's tagged run directory
   into a single `runs/` folder.
 - **Weights & Biases** — *in development.* See [Weights & Biases](#weights--biases).
+- **Table viewer** (`xpm_mlboard.TableViewerService`) — browses the tables
+  (results, metrics, ...) written by the experiment's tasks in a
+  [Perspective](https://perspective-dev.github.io) viewer. See
+  [Table viewer](#table-viewer).
 
 The `xpm_mlboard.MonitoringService` / `xpm_mlboard.SymlinkMonitoringService`
 base classes make it straightforward to add other backends (e.g. Weights & Biases).
@@ -180,6 +184,56 @@ Common environment variables: `WANDB_API_KEY`, `WANDB_BASE_URL` (self-hosted
 server URL), `WANDB_MODE` (`online` / `offline` / `disabled`), `WANDB_ENTITY`
 (team or user), `WANDB_PROJECT`. See the [W&B docs](https://docs.wandb.ai/) for
 the complete reference.
+
+## Table viewer
+
+`TableViewerService` (service id `tables`) shows the tables produced by an
+experiment — evaluation results, metrics, logs — in a
+[Perspective](https://perspective-dev.github.io) viewer: sort, filter, pivot
+(group / split by any column) and chart them in the browser.
+
+```bash
+uv add "xpm-mlboard[tables]"
+```
+
+Register each file with a *logical table name*; every file registered under the
+same name is concatenated into one table, with a `run` column (the task's tags
+path) and one column per experimaestro tag, so results can be grouped by
+hyper-parameter directly:
+
+```python
+from xpm_mlboard import TableViewerService
+
+tables = xp.add_service(TableViewerService(xp.resultspath / "tables"))
+
+for lr in [1e-3, 1e-4]:
+    task = Evaluate(model=..., lr=tag(lr)).submit()
+    # The file does not need to exist yet: it is shown once written
+    tables.add(task, task.results_path, name="eval")
+
+# A table that is not tied to a task
+tables.add_table("summary", xp.resultspath / "summary.csv")
+```
+
+- **Formats:** Parquet, CSV, TSV, JSON lines, JSON records and Arrow IPC,
+  detected from the extension (or `format="csv"`, ...).
+- **Live:** files are re-read when they change (a rewritten file replaces the
+  rows of its run); new tables, runs and columns show up without restarting.
+- **Saved views:** the viewer configuration of each table (columns, pivots,
+  chart, ...) is saved under `<path>/views/` and kept across experiment runs.
+- Tasks with the same tags cannot be told apart: only the first one registered
+  for a table is shown (a warning is logged), as for TensorBoard runs.
+
+The viewer runs as a separate process on a free port; it uses the
+FastAPI/uvicorn stack experimaestro already depends on, and serves the
+Perspective viewer bundled with `perspective-python` (no CDN needed).
+
+To try it on made-up data (the data keeps changing while it runs, to show the
+live updates):
+
+```bash
+uv run --extra tables python -m xpm_mlboard.tables.demo   # http://localhost:8765/
+```
 
 ## License
 

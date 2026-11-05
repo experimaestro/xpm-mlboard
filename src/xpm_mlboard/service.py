@@ -86,9 +86,17 @@ class MonitoringService(Service, abc.ABC):
         # Only collect data and clean up when running normally
         if xp.run_mode == RunMode.NORMAL:
             self.active = True
-            cleanupdir(self.path)
+            self.cleanup()
             self.path.mkdir(exist_ok=True, parents=True)
             self.on_active()
+
+    def cleanup(self):
+        """Reset :attr:`path` when the experiment starts (NORMAL run mode).
+
+        Removes everything by default; backends that keep state across runs
+        (e.g. saved views) override this to clean only the per-run data.
+        """
+        cleanupdir(self.path)
 
     def on_active(self):
         """Hook called once when the service becomes active (NORMAL run mode)."""

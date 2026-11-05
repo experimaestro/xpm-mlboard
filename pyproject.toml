@@ -2,7 +2,7 @@
 name = "xpm-mlboard"
 dynamic = ["version"]
 requires-python = ">=3.10"
-keywords = ["experimaestro", "tensorboard", "wandb", "machine-learning", "monitoring"]
+keywords = ["experimaestro", "tensorboard", "wandb", "perspective", "machine-learning", "monitoring"]
 description = "Lightweight experimaestro services to monitor ML learning curves (TensorBoard, ...)"
 readme = "README.md"
 license = {text = "GPL-3"}
@@ -24,6 +24,14 @@ tensorboard = [
 wandb = [
     "wandb>=0.16",
     "tensorboard>=2.21",
+]
+# Table viewer (Perspective UI over Polars-loaded tables), served with the
+# FastAPI/uvicorn stack experimaestro already depends on. The page drives the
+# viewer bundled in perspective-python, whose wire protocol is version-specific:
+# keep the upper bound until a new major is checked.
+tables = [
+    "polars>=1",
+    "perspective-python>=5.6,<6",
 ]
 
 [dependency-groups]
