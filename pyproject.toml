@@ -1,16 +1,16 @@
 [project]
 name = "xpm-mlboard"
 dynamic = ["version"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 keywords = ["experimaestro", "tensorboard", "wandb", "perspective", "machine-learning", "monitoring"]
 description = "Lightweight experimaestro services to monitor ML learning curves (TensorBoard, ...)"
 readme = "README.md"
 license = {text = "GPL-3"}
 
 dependencies = [
-    # The web-service base classes use the experimaestro 2.5 service API
-    # (ProcessWebService(log_directory=...)).
-    "experimaestro>=2.5.2",
+    # Service.sync_files (2.10): the table files of the jobs are synced when
+    # monitoring a remote workspace
+    "experimaestro>=2.10.0",
 ]
 
 [project.optional-dependencies]
