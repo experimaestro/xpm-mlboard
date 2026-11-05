@@ -52,7 +52,9 @@ Add the service to your experiment and register each task's run directory:
 from xpm_mlboard import TensorboardService
 
 # `xp` is the experimaestro experiment
-service = xp.add_service(TensorboardService(xp.resultspath / "runs"))
+# Relative paths are resolved against xp.resultspath (default: "runs");
+# in dry-run mode, the service is inactive
+service = xp.add_service(TensorboardService())
 
 # When you submit a task, register its run directory so it shows up:
 task = MyLearningTask(...).submit()

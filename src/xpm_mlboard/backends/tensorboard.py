@@ -22,6 +22,7 @@ class TensorboardService(SymlinkMonitoringService, ProcessWebService):
     """Monitoring backend backed by a TensorBoard subprocess."""
 
     id = "tensorboard"
+    default_path = "runs"
 
     def on_active(self):
         logger.info("You can monitor learning with:")

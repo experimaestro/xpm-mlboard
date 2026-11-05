@@ -59,18 +59,30 @@ class MonitoringService(Service, abc.ABC):
     #: Unique service identifier (set by concrete backends)
     id: str
 
+    #: Default directory, relative to the experiment results path, when no
+    #: path is given (set by concrete backends)
+    default_path: str = "monitoring"
+
     def __init__(
         self,
-        path: Path,
+        path: Optional[Path] = None,
         log_directory: Optional[Path] = None,
         project: Optional[str] = None,
     ):
+        """
+        :param path: Directory of the service; a relative path (or the
+            backend's :attr:`default_path` if not given) is resolved against
+            the experiment results path when the experiment starts, so that
+            the service can be created in any run mode (``xp.resultspath`` is
+            not available in dry-run mode).
+        """
         # Cooperative init: forwards log_directory to the experimaestro Service /
         # web-service base classes.
         super().__init__(log_directory=log_directory)
 
-        #: Root directory aggregating every run directory
-        self.path = path
+        #: Root directory aggregating every run directory (absolute once the
+        #: service is active)
+        self.path = Path(path if path is not None else self.default_path)
         #: Project name for exporters (e.g. one Weights & Biases project per
         #: experiment); defaults to the experiment name in :meth:`set_experiment`.
         self.project = project
@@ -85,6 +97,8 @@ class MonitoringService(Service, abc.ABC):
             self.project = self.experiment_id or None
         # Only collect data and clean up when running normally
         if xp.run_mode == RunMode.NORMAL:
+            if not self.path.is_absolute():
+                self.path = xp.resultspath / self.path
             self.active = True
             self.cleanup()
             self.path.mkdir(exist_ok=True, parents=True)

@@ -62,7 +62,9 @@ class TableViewerService(MonitoringService, ProcessWebService):
 
     Usage::
 
-        tables = xp.add_service(TableViewerService(xp.resultspath / "tables"))
+        # Under xp.resultspath / "tables" (default; also works in dry-run
+        # mode, where the service stays inactive)
+        tables = xp.add_service(TableViewerService())
         task = Evaluate(...).submit()
         tables.add(task, task.results_path, name="eval")
         tables.add_table("summary", xp.resultspath / "summary.csv")
@@ -72,6 +74,7 @@ class TableViewerService(MonitoringService, ProcessWebService):
     """
 
     id = "tables"
+    default_path = "tables"
 
     def description(self):
         return "Table viewer"
