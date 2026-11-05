@@ -287,6 +287,9 @@ def test_api(tmp_path: Path):
         assert "<title>Experiment tables</title>" in client.get("/").text
         assert client.get("/static/app.js").status_code == 200
         assert client.get("/static/perspective.js").status_code == 200
+        # Proxies may join their base URL and the path with an extra slash
+        assert client.get("http://testserver//static/app.js").status_code == 200
+        assert "<title>" in client.get("http://testserver//").text
 
         (table,) = client.get("/api/tables").json()["tables"]
         assert table["name"] == "eval"

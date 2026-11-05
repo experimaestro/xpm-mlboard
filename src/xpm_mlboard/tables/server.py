@@ -13,6 +13,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import re
 import socket
 import sys
 import threading
@@ -147,6 +148,19 @@ class TablesApp:
             await asyncio.sleep(self.poll_interval)
 
 
+class CollapseSlashes:
+    """Treat ``//static/app.js`` as ``/static/app.js`` (some reverse proxies
+    join their base URL and the path with an extra slash)."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket") and "//" in scope["path"]:
+            scope = dict(scope, path=re.sub("/{2,}", "/", scope["path"]))
+        await self.app(scope, receive, send)
+
+
 def create_app(tables: TablesApp) -> FastAPI:
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -157,6 +171,7 @@ def create_app(tables: TablesApp) -> FastAPI:
             task.cancel()
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None)
+    app.add_middleware(CollapseSlashes)
 
     @app.get("/")
     async def index():

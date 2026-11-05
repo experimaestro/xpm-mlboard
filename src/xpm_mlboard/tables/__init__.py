@@ -190,5 +190,6 @@ class TableViewerService(MonitoringService, ProcessWebService):
             for log_path in (self.stderr, self.stdout):
                 if log_path and log_path.exists():
                     if match := pattern.search(log_path.read_text()):
-                        return match.group(1)
+                        # Proxies append '/<path>' to the service URL
+                        return match.group(1).rstrip("/")
             time.sleep(0.2)
